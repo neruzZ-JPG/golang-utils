@@ -100,10 +100,5 @@ func runParallel[Out any](
 		return zero, cause
 	}
 
-	outputs := make([]Out, 0, len(tasks))
-	for _, out := range outputsByIndex {
-		outputs = append(outputs, out)
-	}
-
-	return outputs, nil
+	return outputsByIndex, nil
 }

@@ -14,16 +14,16 @@
 引入 `tree_task`：
 
 ```powershell
-go get github.com/neruzZ-JPG/golang-utils/pkg/tree_task@main
+go get github.com/neruzZ-JPG/golang-utils/pkg/tree_task@v0.1.1
 ```
 
 引入 `stringutil`：
 
 ```powershell
-go get github.com/neruzZ-JPG/golang-utils/pkg/stringutil@main
+go get github.com/neruzZ-JPG/golang-utils/pkg/stringutil@v0.1.1
 ```
 
-正式发布版本后，也可以直接使用 `@latest`。
+如需始终跟随最新稳定版本，可以把版本号替换为 `@latest`。
 
 代码中导入：
 
@@ -194,19 +194,19 @@ go test ./pkg/tree_task -run '^TestAddTask$' -v -count=1
 
 ## 版本引用
 
-推荐使用发布后的语义化版本，例如：
+当前稳定版本为 `v0.1.1`。推荐明确指定版本，避免上游更新导致构建变化：
 
 ```powershell
-go get github.com/neruzZ-JPG/golang-utils/pkg/tree_task@v0.1.0
+go get github.com/neruzZ-JPG/golang-utils/pkg/tree_task@v0.1.1
 ```
 
 此时使用者的 `go.mod` 会包含类似依赖：
 
 ```text
-require github.com/neruzZ-JPG/golang-utils v0.1.0
+require github.com/neruzZ-JPG/golang-utils v0.1.1
 ```
 
-如果还没有正式版本，也可以引用默认分支：
+需要体验尚未发布的功能时，可以引用默认分支：
 
 ```powershell
 go get github.com/neruzZ-JPG/golang-utils/pkg/tree_task@main
