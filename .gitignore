@@ -1,0 +1,11 @@
+# Build outputs
+/bin/
+*.exe
+*.test
+*.out
+coverage.out
+.cache/
+
+# Editors
+.idea/
+.vscode/
