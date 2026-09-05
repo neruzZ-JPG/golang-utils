@@ -3,11 +3,11 @@ package tree_task
 import (
 	"context"
 	"errors"
+	"log"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
-	"log"
 )
 
 type letterTask struct {
@@ -29,7 +29,7 @@ func (t *letterTask) Process(ctx context.Context) (string, error) {
 	return "", errors.New("needs division")
 }
 
-func (t *letterTask) Divide(ctx context.Context) ([]TreeTask[string, string], error) {
+func (t *letterTask) Divide(ctx context.Context) ([]TreeTask[string], error) {
 	if cause := context.Cause(ctx); cause != nil {
 		return nil, cause
 	}
@@ -38,7 +38,7 @@ func (t *letterTask) Divide(ctx context.Context) ([]TreeTask[string, string], er
 	}
 
 	middle := len(t.input) / 2
-	return []TreeTask[string, string]{
+	return []TreeTask[string]{
 		&letterTask{
 			input:    t.input[:middle],
 			parallel: t.parallel,
@@ -74,7 +74,7 @@ func TestRunTreeTask(t *testing.T) {
 				parallel: tt.parallel,
 			}
 
-			got, err := RunTreeTask[string, string](context.Background(), task)
+			got, err := RunTreeTask(context.Background(), task)
 			if err != nil {
 				t.Fatalf("RunTreeTask() error = %v", err)
 			}
@@ -98,7 +98,7 @@ func (t *failingTask) Process(context.Context) (string, error) {
 	return "", errBranchFailed
 }
 
-func (t *failingTask) Divide(context.Context) ([]TreeTask[string, string], error) {
+func (t *failingTask) Divide(context.Context) ([]TreeTask[string], error) {
 	return nil, errBranchFailed
 }
 
@@ -125,7 +125,7 @@ func (t *cancelObserverTask) Process(ctx context.Context) (string, error) {
 	return "", context.Cause(ctx)
 }
 
-func (t *cancelObserverTask) Divide(ctx context.Context) ([]TreeTask[string, string], error) {
+func (t *cancelObserverTask) Divide(ctx context.Context) ([]TreeTask[string], error) {
 	return nil, context.Cause(ctx)
 }
 
@@ -146,8 +146,8 @@ func (t *parallelFailureTask) Process(context.Context) (string, error) {
 	return "", errors.New("needs division")
 }
 
-func (t *parallelFailureTask) Divide(ctx context.Context) ([]TreeTask[string, string], error) {
-	return []TreeTask[string, string]{
+func (t *parallelFailureTask) Divide(ctx context.Context) ([]TreeTask[string], error) {
+	return []TreeTask[string]{
 		&failingTask{started: t.started},
 		t.observer,
 	}, nil
@@ -167,7 +167,7 @@ func TestRunTreeTaskParallelCancelsSiblings(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	_, err := RunTreeTask[string, string](ctx, &parallelFailureTask{
+	_, err := RunTreeTask(ctx, &parallelFailureTask{
 		observer: observer,
 		started:  started,
 	})
@@ -179,48 +179,81 @@ func TestRunTreeTaskParallelCancelsSiblings(t *testing.T) {
 	}
 }
 
-
-type AddTask struct{
+type AddTask struct {
 	numList []int
 }
 
-func (task *AddTask) Process (context.Context) (int, error){
-	if len(numList) > 5{
-		logs.V1.CtxWarn("too long to add")
-		return 0, error.New("too long to add")
+func (task *AddTask) Process(ctx context.Context) (int, error) {
+	if cause := context.Cause(ctx); cause != nil {
+		return 0, cause
 	}
+	if len(task.numList) > 5 {
+		return 0, errors.New("too long to add")
+	}
+
 	res := 0
-	for _, num := numList{
+	for _, num := range task.numList {
 		res += num
 	}
-	return res
+
+	log.Printf("[AddTask] process input=%v result=%d", task.numList, res)
+	return res, nil
 }
 
-func (task *AddTask)Divide(context.Context) ([]AddTask, error){
-	l := len(numList)
-	if l <= 1{
-		return nil, error.New("too short to divide")
+func (task *AddTask) Divide(ctx context.Context) ([]TreeTask[int], error) {
+	if cause := context.Cause(ctx); cause != nil {
+		return nil, cause
 	}
-	middle := len(t.input) / 2
-	return []AddTask{
+	if len(task.numList) <= 1 {
+		return nil, errors.New("too short to divide")
+	}
+
+	middle := len(task.numList) / 2
+	left := task.numList[:middle]
+	right := task.numList[middle:]
+	log.Printf("[AddTask] divide input=%v left=%v right=%v", task.numList, left, right)
+
+	return []TreeTask[int]{
 		&AddTask{
-			numList:    t.numList[:middle],
+			numList: left,
 		},
 		&AddTask{
-			numList:    t.numList[middle:],
+			numList: right,
 		},
 	}, nil
 }
 
-
-func (task *AddTask) IsParallel() bool{
+func (task *AddTask) IsParallel() bool {
 	return true
 }
 
-func (task *AddTask) MergeOutputs(ctx context.Context, nums []int) (int, error){
+func (task *AddTask) MergeOutputs(ctx context.Context, nums []int) (int, error) {
+	if cause := context.Cause(ctx); cause != nil {
+		return 0, cause
+	}
+
 	res := 0
-	for _, num := range nums{
+	for _, num := range nums {
 		res += num
 	}
-	return res, 0
+
+	log.Printf("[AddTask] merge inputs=%v result=%d", nums, res)
+
+	return res, nil
+}
+
+func TestAddTask(t *testing.T) {
+	nums := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
+
+	got, err := RunTreeTask(context.Background(), &AddTask{
+		numList: nums,
+	})
+	if err != nil {
+		t.Fatalf("RunTreeTask() error = %v", err)
+	}
+
+	want := 66
+	if got != want {
+		t.Fatalf("RunTreeTask() = %d, want %d", got, want)
+	}
 }

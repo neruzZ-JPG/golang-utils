@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-func RunTreeTask[In, Out any](ctx context.Context, task TreeTask[In, Out]) (Out, error) {
+func RunTreeTask[Out any](ctx context.Context, task TreeTask[Out]) (Out, error) {
 	if cause := context.Cause(ctx); cause != nil {
 		var zero Out
 		return zero, cause
@@ -46,9 +46,9 @@ func RunTreeTask[In, Out any](ctx context.Context, task TreeTask[In, Out]) (Out,
 	return task.MergeOutputs(ctx, subOutputs)
 }
 
-func runSequential[In, Out any](
+func runSequential[Out any](
 	ctx context.Context,
-	tasks []TreeTask[In, Out],
+	tasks []TreeTask[Out],
 ) ([]Out, error) {
 	outputs := make([]Out, 0, len(tasks))
 
@@ -63,9 +63,9 @@ func runSequential[In, Out any](
 	return outputs, nil
 }
 
-func runParallel[In, Out any](
+func runParallel[Out any](
 	ctx context.Context,
-	tasks []TreeTask[In, Out],
+	tasks []TreeTask[Out],
 ) ([]Out, error) {
 	ctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
@@ -77,7 +77,7 @@ func runParallel[In, Out any](
 	for i, child := range tasks {
 		wg.Add(1)
 
-		go func(index int, task TreeTask[In, Out]) {
+		go func(index int, task TreeTask[Out]) {
 			defer wg.Done()
 
 			out, err := RunTreeTask(ctx, task)
