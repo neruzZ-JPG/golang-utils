@@ -6,16 +6,18 @@ import (
 )
 
 func RunTreeTask[Out any](ctx context.Context, task TreeTask[Out]) (Out, error) {
+	var zero Out
 	if cause := context.Cause(ctx); cause != nil {
-		var zero Out
 		return zero, cause
 	}
 
-	out, err := task.Process(ctx)
+	out, shouldContinue, err := task.Process(ctx)
 	if err == nil {
 		return out, nil
 	}
-
+	if !shouldContinue {
+		return zero, err
+	}
 	if cause := context.Cause(ctx); cause != nil {
 		var zero Out
 		return zero, cause
